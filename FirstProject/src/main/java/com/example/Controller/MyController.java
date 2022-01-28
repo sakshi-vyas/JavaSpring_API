@@ -3,12 +3,16 @@ package com.example.Controller;
 import java.io.File;
 import javax.mail.*;  
 import javax.mail.internet.*;
+import javax.servlet.ServletOutputStream;
+import javax.servlet.http.HttpServletResponse;
 import javax.mail.Session;
 import javax.activation.*;  
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.math.BigInteger;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.Iterator;
@@ -17,10 +21,13 @@ import java.util.Properties;
 import java.util.Timer;
 
 import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.ss.usermodel.CellStyle;
 import org.apache.poi.ss.usermodel.CellType;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.xssf.usermodel.XSSFFont;
+import org.apache.poi.xssf.usermodel.XSSFSheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -35,13 +42,14 @@ import com.sun.mail.smtp.SMTPTransport;
 @RestController 
 public class MyController {
 	
-	// List<String> to_mails= new ArrayList<>();
-		
+	List<String> to_mails= new ArrayList<>();
+	List<String> stud_names= new ArrayList<>();
+	List<Student> list= new ArrayList<>();
 	@GetMapping("/StudentInfo")
 	public List<Student> getInfo() throws Exception {
 		// String FILE_NAME = "./src/main/java/com/example/Controller/Project01.xlsx";
 		String FILE_NAME = "./Project01.xlsx";
-	        List<Student> list= new ArrayList<>();
+	        
 		 try {
 
 	            FileInputStream excelFile = new FileInputStream(new File(FILE_NAME));
@@ -62,11 +70,12 @@ public class MyController {
 	                    Cell currentCell = cellIterator.next();
 	                    if (i==0){
 	                        student.setName(currentCell.getStringCellValue());
+	                        stud_names.add(student.getName());
 	                        } 
 	                    if (i==1){
 	                        student.setMail(currentCell.getStringCellValue());
 	                        sendMail(student.getMail(),student.getName());
-	                        //to_mails.add(student.getMail());
+	                        to_mails.add(student.getMail());
 	                        } 
 	                    if (i==2){
 	                        student.setContact((long)currentCell.getNumericCellValue());
@@ -137,6 +146,99 @@ public class MyController {
 	      } 
 	      return null;
 	        }
+	        
+	        //////code for export
+	        
+	        
+	        private XSSFWorkbook workbook = new XSSFWorkbook();
+	        private XSSFSheet sheet2;
+	        
+	        private void writeHeaderLine() {
+	        	
+	        	sheet2 = workbook.getSheet("ExportedUsers");
+	        	if(sheet2 == null)
+	        	    sheet2 = workbook.createSheet("ExportedUsers");
+	        	
+	            
+	             
+	            Row row = sheet2.createRow(0);
+	             
+	            CellStyle style = workbook.createCellStyle();
+	            XSSFFont font = workbook.createFont();
+	            font.setBold(true);
+	            font.setFontHeight(16);
+	            style.setFont(font);
+	             
+	            createCell(row, 0, "User Name", style);      
+	            createCell(row, 1, "E-mail", style);       
+	            //createCell(row, 2, "Phone No.", style);    
+	            	             
+	        }
+	         
+	        private void createCell(Row row, int columnCount, Object value, CellStyle style) {
+	            sheet2.autoSizeColumn(columnCount);
+	            Cell cell = row.createCell(columnCount);
+	            if (value instanceof Integer) {
+	                cell.setCellValue((Integer) value);
+	            } else if (value instanceof Boolean) {
+	                cell.setCellValue((Boolean) value);
+	            }else {
+	                cell.setCellValue((String) value);
+	            }
+	            cell.setCellStyle(style);
+	        }
+	         
+	        private void writeDataLines() {
+	        	System.out.println("writing in excel..");
+	        	
+	            int rowCount = 1;
+	     
+	            CellStyle style = workbook.createCellStyle();
+	            XSSFFont font = workbook.createFont();
+	            font.setFontHeight(14);
+	            style.setFont(font);
+	                     
+	            for (int i = 0; i < to_mails.size(); i++) {
+					
+			
+	                Row row = sheet2.createRow(rowCount++);
+	                int columnCount = 0;
+	                 
+	                createCell(row, columnCount++, stud_names.get(i), style);
+	                createCell(row, columnCount++, to_mails.get(i), style);
+	                //createCell(row, columnCount++, stud.getContact(), style);
+	                                
+	            }
+	        }
+	         
+	        public void export(HttpServletResponse response) throws IOException {
+	            writeHeaderLine();
+	            writeDataLines();
+	             
+	            ServletOutputStream outputStream = response.getOutputStream();
+	            workbook.write(outputStream);
+	            workbook.close();
+	            System.out.println("done excel..");
+	            outputStream.close();
+	           }
+	        
+	        @GetMapping("/exportExcel")
+	        public void exportToExcel(HttpServletResponse response) throws IOException {
+	            response.setContentType("application/octet-stream");
+	            DateFormat dateFormatter = new SimpleDateFormat("yyyy-MM-dd_HH:mm:ss");
+	            String currentDateTime = dateFormatter.format(new Date());
+	             
+	            String headerKey = "Content-Disposition";
+	            String headerValue = "attachment; filename=users_" + currentDateTime + ".xlsx";
+	            response.setHeader(headerKey, headerValue);
+	           
+	            export(response);  
+	            
+	        }  
+	        
+	        
+	        ////////////////
+	        
 	        
 	      
 	
