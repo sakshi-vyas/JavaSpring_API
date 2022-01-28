@@ -39,7 +39,8 @@ public class MyController {
 		
 	@GetMapping("/StudentInfo")
 	public List<Student> getInfo() throws Exception {
-		 String FILE_NAME = "./src/main/java/com/example/Controller/Project01.xlsx";
+		// String FILE_NAME = "./src/main/java/com/example/Controller/Project01.xlsx";
+		String FILE_NAME = "./Project01.xlsx";
 	        List<Student> list= new ArrayList<>();
 		 try {
 
